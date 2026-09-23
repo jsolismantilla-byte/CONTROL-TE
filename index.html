@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Reparto de Contenedores</title>
+<style>
+  :root{
+    --bg:#0F1720;
+    --surface:#1B2530;
+    --surface-2:#222E3A;
+    --line:#33404D;
+    --text:#E8ECEF;
+    --text-dim:#93A1AC;
+    --amber:#F5A623;
+    --amber-dim:#4A3A17;
+    --green:#4CAF7D;
+    --green-dim:#183426;
+    --red:#E15554;
+    --red-dim:#3A1E1E;
+    --mono: ui-monospace, "SF Mono", "Roboto Mono", "Cascadia Mono", Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:var(--bg); color:var(--text);
+    font-family:var(--sans);
+    -webkit-tap-highlight-color:transparent;
+  }
+  body{
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:calc(64px + env(safe-area-inset-bottom,0px));
+    min-height:100%;
+  }
+  header{
+    position:sticky; top:env(safe-area-inset-top,0px); z-index:10;
+    background:var(--bg); border-bottom:1px solid var(--line);
+    padding:14px 16px 10px;
+  }
+  header h1{
+    margin:0; font-size:17px; font-weight:700; letter-spacing:.2px;
+  }
+  header .totales{
+    display:flex; gap:14px; margin-top:8px; font-family:var(--mono); font-size:12px; color:var(--text-dim);
+  }
+  header .totales b{color:var(--amber); font-weight:600;}
+  main{padding:14px 16px 24px;}
+  section{display:none;}
+  section.active{display:block;}
+
+  .card{
+    background:var(--surface); border:1px solid var(--line); border-radius:10px;
+    padding:14px; margin-bottom:12px;
+  }
+  .card h2{margin:0 0 10px; font-size:14px; font-weight:600; color:var(--text-dim); text-transform:none;}
+
+  .field{margin-bottom:10px;}
+  .field label{display:block; font-size:12px; color:var(--text-dim); margin-bottom:4px;}
+  .field input{
+    width:100%; padding:11px 10px; border-radius:8px; border:1px solid var(--line);
+    background:var(--surface-2); color:var(--text); font-size:15px; font-family:var(--mono);
+  }
+  .field input::placeholder{color:#5B6873; font-family:var(--sans);}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+
+  button{
+    font-family:var(--sans); font-size:14px; font-weight:600; border:none; border-radius:8px;
+    padding:11px 16px; cursor:pointer;
+  }
+  .btn-primary{background:var(--amber); color:#1A1200; width:100%;}
+  .btn-primary:active{opacity:.85;}
+  .btn-ghost{background:transparent; color:var(--text-dim); border:1px solid var(--line); padding:6px 10px; font-size:12px;}
+  .btn-danger-ghost{background:transparent; color:var(--red); border:1px solid var(--red); padding:5px 9px; font-size:12px;}
+
+  .list-item{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:10px 0; border-bottom:1px solid var(--line);
+  }
+  .list-item:last-child{border-bottom:none;}
+  .list-item .main{flex:1; min-width:0;}
+  .list-item .main .l1{font-family:var(--mono); font-weight:600; font-size:14px;}
+  .list-item .main .l2{font-size:12px; color:var(--text-dim); margin-top:2px;}
+
+  .empty{
+    text-align:center; color:var(--text-dim); font-size:13px; padding:26px 10px;
+    border:1px dashed var(--line); border-radius:10px;
+  }
+
+  .pill{
+    display:inline-block; font-family:var(--mono); font-size:11px; padding:2px 8px;
+    border-radius:20px; background:var(--surface-2); color:var(--text-dim); border:1px solid var(--line);
+  }
+  .pill.ok{color:var(--green); border-color:var(--green-dim); background:var(--green-dim);}
+  .pill.warn{color:var(--red); border-color:var(--red-dim); background:var(--red-dim);}
+  .pill.amber{color:var(--amber); border-color:var(--amber-dim); background:var(--amber-dim);}
+
+  .split{
+    background:var(--surface-2); border-radius:8px; padding:10px; margin-top:8px;
+  }
+  .split .head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;}
+  .split .head .cont{font-family:var(--mono); font-weight:700; font-size:13px;}
+  .split .head .bultos{font-size:12px; color:var(--text-dim);}
+  .split .vals{display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:12px;}
+  .split .vals .lab{color:var(--text-dim);}
+  .split .vals input{
+    width:100%; padding:7px 8px; border-radius:6px; border:1px solid var(--line);
+    background:var(--bg); color:var(--text); font-family:var(--mono); font-size:13px; margin-top:3px;
+  }
+  .diff{font-family:var(--mono); font-size:12px; margin-top:6px;}
+  .diff.pos{color:var(--red);}
+  .diff.neg{color:#6FB6FF;}
+
+  .banner{
+    padding:10px 12px; border-radius:8px; font-size:13px; margin-bottom:12px;
+    background:var(--red-dim); color:#FFD3D1; border:1px solid var(--red);
+  }
+
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  th,td{padding:8px 6px; text-align:right; border-bottom:1px solid var(--line); font-family:var(--mono);}
+  th:first-child, td:first-child{text-align:left; font-family:var(--sans);}
+  th{color:var(--text-dim); font-weight:600; font-size:11px;}
+  .estado-lleno{color:var(--red);}
+  .estado-disp{color:var(--green);}
+  .estado-sin{color:var(--text-dim);}
+
+  nav.tabs{
+    position:fixed; bottom:0; left:0; right:0; z-index:20;
+    display:flex; background:var(--surface); border-top:1px solid var(--line);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  nav.tabs button{
+    flex:1; background:transparent; color:var(--text-dim); border-radius:0;
+    padding:11px 4px 9px; font-size:11px; display:flex; flex-direction:column; align-items:center; gap:3px;
+  }
+  nav.tabs button .ico{font-size:18px; line-height:1;}
+  nav.tabs button.active{color:var(--amber);}
+
+  .footnote{font-size:11px; color:var(--text-dim); margin-top:10px; line-height:1.5;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Reparto de Contenedores</h1>
+  <div class="totales">
+    <span><b id="totCamiones">0</b> camiones</span>
+    <span><b id="totBultos">0</b> bultos</span>
+    <span><b id="totPeso">0</b> kg guía</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- ===================== CAMIONES ===================== -->
+  <section id="view-camiones" class="active">
+    <div class="card">
+      <h2>Agregar camión</h2>
+      <div class="field"><label>Placa</label><input id="in-placa" placeholder="TAU-859" autocapitalize="characters"></div>
+      <div class="row2">
+        <div class="field"><label>Tracto</label><input id="in-tracto" placeholder="TR-101" autocapitalize="characters"></div>
+        <div class="field"><label>Bultos</label><input id="in-bultos" type="number" inputmode="numeric" placeholder="24"></div>
+      </div>
+      <div class="field"><label>Peso Neto según Guía (kg)</label><input id="in-peso" type="number" inputmode="decimal" placeholder="35060"></div>
+      <button class="btn-primary" onclick="addCamion()">Agregar camión</button>
+    </div>
+
+    <div class="card">
+      <h2>Camiones ingresados</h2>
+      <div id="lista-camiones"></div>
+    </div>
+  </section>
+
+  <!-- ===================== CONTENEDORES ===================== -->
+  <section id="view-contenedores">
+    <div class="card">
+      <h2>Agregar contenedor</h2>
+      <div class="field"><label>Código de Contenedor</label><input id="in-codigo" placeholder="MSCU 123456 7" autocapitalize="characters"></div>
+      <div class="row2">
+        <div class="field"><label>Tara (kg)</label><input id="in-tara" type="number" inputmode="numeric" placeholder="2250"></div>
+        <div class="field"><label>Payload máx. (kg)</label><input id="in-payload" type="number" inputmode="numeric" placeholder="28230"></div>
+      </div>
+      <button class="btn-primary" onclick="addContenedor()">Agregar contenedor</button>
+    </div>
+
+    <div class="card">
+      <h2>Contenedores ingresados</h2>
+      <div id="lista-contenedores"></div>
+    </div>
+  </section>
+
+  <!-- ===================== REPARTO ===================== -->
+  <section id="view-reparto">
+    <div id="reparto-banner"></div>
+    <div id="lista-reparto"></div>
+  </section>
+
+  <!-- ===================== RESUMEN ===================== -->
+  <section id="view-resumen">
+    <div class="card">
+      <h2>Resumen por contenedor · peso báscula COSCO</h2>
+      <div id="tabla-resumen"></div>
+      <div class="footnote">Payload y Tara son los que definiste en "Contenedores". El peso COSCO acumulado solo suma lo que hayas registrado en la pestaña Reparto — lo que aún no se pesa no cuenta.</div>
+    </div>
+    <div class="card">
+      <button class="btn-danger-ghost" style="width:100%" onclick="reiniciar()">Borrar todo y empezar un lote nuevo</button>
+    </div>
+  </section>
+
+</main>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-view="camiones" onclick="showView('camiones')"><span class="ico">🚛</span>Camiones</button>
+  <button class="tab-btn" data-view="contenedores" onclick="showView('contenedores')"><span class="ico">📦</span>Contenedores</button>
+  <button class="tab-btn" data-view="reparto" onclick="showView('reparto')"><span class="ico">⚖️</span>Reparto</button>
+  <button class="tab-btn" data-view="resumen" onclick="showView('resumen')"><span class="ico">📋</span>Resumen</button>
+</nav>
+
+<script>
+const STORE_KEY = "reparto_contenedores_v1";
+
+let state = {
+  camiones: [],      // {placa, tracto, bultos, peso}
+  contenedores: [],   // {codigo, tara, payload}
+  cosco: {}           // "camionIdx_contIdx" -> peso real kg
+};
+
+function load(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw) state = Object.assign(state, JSON.parse(raw));
+  }catch(e){ console.warn("No se pudo leer almacenamiento local", e); }
+}
+function save(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+  catch(e){ console.warn("No se pudo guardar", e); }
+}
+
+function fmt(n){
+  if(n===null||n===undefined||isNaN(n)) return "—";
+  return Math.round(n).toLocaleString("es-PE");
+}
+
+// ---------------------------------------------------------------
+// Navegación
+// ---------------------------------------------------------------
+function showView(name){
+  document.querySelectorAll("section").forEach(s=>s.classList.remove("active"));
+  document.getElementById("view-"+name).classList.add("active");
+  document.querySelectorAll(".tab-btn").forEach(b=>b.classList.toggle("active", b.dataset.view===name));
+  if(name==="reparto") renderReparto();
+  if(name==="resumen") renderResumen();
+}
+
+// ---------------------------------------------------------------
+// Camiones
+// ---------------------------------------------------------------
+function addCamion(){
+  const placa = document.getElementById("in-placa").value.trim();
+  const tracto = document.getElementById("in-tracto").value.trim();
+  const bultos = parseFloat(document.getElementById("in-bultos").value);
+  const peso = parseFloat(document.getElementById("in-peso").value);
+  if(!placa || !bultos || !peso){
+    alert("Completa placa, bultos y peso neto según guía.");
+    return;
+  }
+  state.camiones.push({placa, tracto, bultos, peso});
+  save();
+  ["in-placa","in-tracto","in-bultos","in-peso"].forEach(id=>document.getElementById(id).value="");
+  renderCamiones();
+}
+function delCamion(i){
+  if(!confirm("¿Quitar este camión del lote?")) return;
+  state.camiones.splice(i,1);
+  // limpiar cosco asociado a ese índice y reindexar
+  const nuevo = {};
+  Object.keys(state.cosco).forEach(k=>{
+    const [ci, cj] = k.split("_").map(Number);
+    if(ci===i) return;
+    const newCi = ci>i? ci-1: ci;
+    nuevo[newCi+"_"+cj] = state.cosco[k];
+  });
+  state.cosco = nuevo;
+  save();
+  renderCamiones();
+}
+function renderCamiones(){
+  const box = document.getElementById("lista-camiones");
+  document.getElementById("totCamiones").textContent = state.camiones.length;
+  document.getElementById("totBultos").textContent = fmt(state.camiones.reduce((s,c)=>s+c.bultos,0));
+  document.getElementById("totPeso").textContent = fmt(state.camiones.reduce((s,c)=>s+c.peso,0));
+  if(state.camiones.length===0){
+    box.innerHTML = '<div class="empty">Sin camiones todavía. Agrega el primero arriba.</div>';
+    return;
+  }
+  box.innerHTML = state.camiones.map((c,i)=>{
+    const prom = c.bultos? (c.peso/c.bultos) : 0;
+    return `<div class="list-item">
+      <div class="main">
+        <div class="l1">${c.placa}${c.tracto? " · "+c.tracto:""}</div>
+        <div class="l2">${c.bultos} bultos · ${fmt(c.peso)} kg guía · ${fmt(prom)} kg/bulto</div>
+      </div>
+      <button class="btn-danger-ghost" onclick="delCamion(${i})">Quitar</button>
+    </div>`;
+  }).join("");
+}
+
+// ---------------------------------------------------------------
+// Contenedores
+// ---------------------------------------------------------------
+function addContenedor(){
+  const codigo = document.getElementById("in-codigo").value.trim();
+  const tara = parseFloat(document.getElementById("in-tara").value) || 0;
+  const payload = parseFloat(document.getElementById("in-payload").value);
+  if(!codigo || !payload){
+    alert("Completa el código y el payload máximo.");
+    return;
+  }
+  state.contenedores.push({codigo, tara, payload});
+  save();
+  ["in-codigo","in-tara","in-payload"].forEach(id=>document.getElementById(id).value="");
+  renderContenedores();
+}
+function delContenedor(i){
+  if(!confirm("¿Quitar este contenedor?")) return;
+  state.contenedores.splice(i,1);
+  const nuevo = {};
+  Object.keys(state.cosco).forEach(k=>{
+    const [ci, cj] = k.split("_").map(Number);
+    if(cj===i) return;
+    const newCj = cj>i? cj-1: cj;
+    nuevo[ci+"_"+newCj] = state.cosco[k];
+  });
+  state.cosco = nuevo;
+  save();
+  renderContenedores();
+}
+function renderContenedores(){
+  const box = document.getElementById("lista-contenedores");
+  if(state.contenedores.length===0){
+    box.innerHTML = '<div class="empty">Sin contenedores todavía. Agrega el primero arriba.</div>';
+    return;
+  }
+  const targets = computeTargets();
+  box.innerHTML = state.contenedores.map((c,i)=>{
+    const tgt = targets[i]||0;
+    return `<div class="list-item">
+      <div class="main">
+        <div class="l1">${c.codigo}</div>
+        <div class="l2">Tara ${fmt(c.tara)} kg · Payload ${fmt(c.payload)} kg · Target equitativo <span class="pill amber">${fmt(tgt)} kg</span></div>
+      </div>
+      <button class="btn-danger-ghost" onclick="delContenedor(${i})">Quitar</button>
+    </div>`;
+  }).join("");
+}
+
+// ---------------------------------------------------------------
+// Motor de reparto equitativo (mismo criterio que la hoja de cálculo):
+// 1) Suma el peso neto de TODOS los camiones.
+// 2) Reparte ese total entre los contenedores activos (payload>0) de la
+//    forma más pareja posible, sin exceder el payload de ninguno (Target).
+// 3) Camión por camión, en el orden ingresado, llena siempre primero el
+//    contenedor que esté más lejos de su Target.
+// ---------------------------------------------------------------
+function computeTargets(){
+  const active = state.contenedores
+    .map((c,idx)=>({...c, idx}))
+    .filter(c=>c.payload>0);
+  const n = active.length;
+  const targets = {};
+  state.contenedores.forEach((c,idx)=> targets[idx]=0);
+  if(n===0) return targets;
+  const totalNeto = state.camiones.reduce((s,c)=>s+(c.peso||0),0);
+  const sorted = active.slice().sort((a,b)=>a.payload-b.payload);
+  let best = -Infinity, cum = 0;
+  for(let i=0;i<n;i++){
+    const cand = (totalNeto - cum) / (n - i);
+    if(cand > best) best = cand;
+    cum += sorted[i].payload;
+  }
+  const L = best;
+  active.forEach(c=> targets[c.idx] = Math.min(c.payload, L));
+  return targets;
+}
+
+function computeDistribution(){
+  const targets = computeTargets();
+  const saldo = {};
+  state.contenedores.forEach((c,idx)=> saldo[idx]=0);
+  const perCamion = [];
+
+  state.camiones.forEach(cam=>{
+    let remaining = cam.peso || 0;
+    const pesoProm = cam.bultos? cam.peso/cam.bultos : 0;
+    const splits = [];
+    while(remaining > 0.01){
+      let best = null;
+      state.contenedores.forEach((c,idx)=>{
+        const tgt = targets[idx]||0;
+        if(tgt<=0) return;
+        const remcap = tgt - saldo[idx];
+        if(remcap <= 0.01) return;
+        if(best===null || saldo[idx] < saldo[best]) best = idx;
+      });
+      if(best===null) break;
+      const remcap = targets[best] - saldo[best];
+      const assign = Math.min(remaining, remcap);
+      splits.push({contIdx:best, peso:assign});
+      saldo[best] += assign;
+      remaining -= assign;
+    }
+    const sobrante = remaining>0.01? remaining : 0;
+    let bultosUsados = 0;
+    splits.forEach((s,i)=>{
+      if(i===splits.length-1){
+        s.bultos = Math.max(0, (cam.bultos||0) - bultosUsados);
+      }else{
+        s.bultos = pesoProm? Math.round(s.peso/pesoProm) : 0;
+        bultosUsados += s.bultos;
+      }
+      s.pesoEstimado = s.bultos * pesoProm;
+    });
+    perCamion.push({splits, sobrante, pesoProm});
+  });
+
+  return {targets, perCamion};
+}
+
+function renderReparto(){
+  const banner = document.getElementById("reparto-banner");
+  const box = document.getElementById("lista-reparto");
+  if(state.camiones.length===0 || state.contenedores.length===0){
+    banner.innerHTML = "";
+    box.innerHTML = '<div class="empty">Ingresa al menos un camión y un contenedor para calcular el reparto.</div>';
+    return;
+  }
+  const {perCamion} = computeDistribution();
+  const haySobrante = perCamion.some(p=>p.sobrante>0);
+  banner.innerHTML = haySobrante
+    ? '<div class="banner">Hay peso sin asignar: los contenedores activos ya no tienen espacio. Agrega otro contenedor o revisa los payloads.</div>'
+    : "";
+
+  box.innerHTML = state.camiones.map((cam,i)=>{
+    const info = perCamion[i];
+    const splitsHtml = info.splits.map((s,si)=>{
+      const cont = state.contenedores[s.contIdx];
+      const key = i+"_"+s.contIdx;
+      const coscoVal = state.cosco[key];
+      const diff = (coscoVal!==undefined && coscoVal!=="" && !isNaN(coscoVal))? (parseFloat(coscoVal) - s.pesoEstimado) : null;
+      return `<div class="split">
+        <div class="head">
+          <span class="cont">${cont? cont.codigo : "?"}</span>
+          <span class="bultos">${s.bultos} bultos</span>
+        </div>
+        <div class="vals">
+          <div><span class="lab">Peso estimado</span><br>${fmt(s.pesoEstimado)} kg</div>
+          <div><span class="lab">Peso COSCO real</span>
+            <input type="number" inputmode="decimal" placeholder="kg báscula"
+              value="${coscoVal!==undefined? coscoVal : ""}"
+              onchange="setCosco(${i},${s.contIdx},this.value)">
+          </div>
+        </div>
+        ${diff!==null? `<div class="diff ${diff>=0?'pos':'neg'}">Diferencia: ${diff>=0?"+":""}${fmt(diff)} kg</div>` : ""}
+      </div>`;
+    }).join("");
+    const sobranteHtml = info.sobrante>0
+      ? `<div class="diff pos">⚠ Sin asignar: ${fmt(info.sobrante)} kg</div>` : "";
+    return `<div class="card">
+      <h2>${cam.placa}${cam.tracto? " · "+cam.tracto:""} — ${cam.bultos} bultos · ${fmt(cam.peso)} kg guía</h2>
+      ${splitsHtml}${sobranteHtml}
+    </div>`;
+  }).join("");
+}
+
+function setCosco(camIdx, contIdx, val){
+  const key = camIdx+"_"+contIdx;
+  if(val===""){ delete state.cosco[key]; }
+  else{ state.cosco[key] = parseFloat(val); }
+  save();
+  renderReparto();
+}
+
+// ---------------------------------------------------------------
+// Resumen por contenedor (solo pesos COSCO)
+// ---------------------------------------------------------------
+function renderResumen(){
+  const box = document.getElementById("tabla-resumen");
+  if(state.contenedores.length===0){
+    box.innerHTML = '<div class="empty">Agrega contenedores para ver el resumen.</div>';
+    return;
+  }
+  const {perCamion} = computeDistribution();
+  const coscoAcum = {};
+  state.contenedores.forEach((c,idx)=> coscoAcum[idx]=0);
+  perCamion.forEach((info,camIdx)=>{
+    info.splits.forEach(s=>{
+      const key = camIdx+"_"+s.contIdx;
+      const v = state.cosco[key];
+      if(v!==undefined && v!=="" && !isNaN(v)) coscoAcum[s.contIdx] += parseFloat(v);
+    });
+  });
+
+  let rows = state.contenedores.map((c,idx)=>{
+    const cosco = coscoAcum[idx];
+    const bruto = c.tara + cosco;
+    const disponible = c.payload - cosco;
+    const pct = c.payload? (cosco/c.payload*100) : 0;
+    let estadoClass = "estado-sin", estadoTxt = "sin usar";
+    if(c.payload>0){
+      if(cosco<=0){ estadoClass="estado-sin"; estadoTxt="sin pesar"; }
+      else if(disponible<=0){ estadoClass="estado-lleno"; estadoTxt="lleno"; }
+      else{ estadoClass="estado-disp"; estadoTxt="disponible"; }
+    }
+    return `<tr>
+      <td>${c.codigo}</td>
+      <td>${fmt(c.tara)}</td>
+      <td>${fmt(c.payload)}</td>
+      <td>${fmt(cosco)}</td>
+      <td>${fmt(bruto)}</td>
+      <td>${pct.toFixed(1)}%</td>
+      <td class="${estadoClass}">${estadoTxt}</td>
+    </tr>`;
+  }).join("");
+
+  box.innerHTML = `<div style="overflow-x:auto"><table>
+    <thead><tr>
+      <th>Contenedor</th><th>Tara</th><th>Payload</th>
+      <th>Peso COSCO acum.</th><th>Peso bruto est.</th><th>% llenado</th><th>Estado</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+}
+
+// ---------------------------------------------------------------
+function reiniciar(){
+  if(!confirm("Esto borra todos los camiones, contenedores y pesos COSCO del lote actual. ¿Continuar?")) return;
+  state = {camiones:[], contenedores:[], cosco:{}};
+  save();
+  renderCamiones();
+  renderContenedores();
+  renderReparto();
+  renderResumen();
+}
+
+// ---------------------------------------------------------------
+load();
+renderCamiones();
+renderContenedores();
+</script>
+</body>
+</html>
