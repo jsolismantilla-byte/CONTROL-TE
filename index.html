@@ -228,14 +228,17 @@
   <!-- ===================== CAMIONES ===================== -->
   <section id="view-camiones" class="active">
     <div class="card">
-      <h2>Agregar camion</h2>
+      <h2 id="titulo-form-camion">Agregar camion</h2>
       <div class="field"><label>Placa</label><input id="in-placa" placeholder="TAU-859" autocapitalize="characters"></div>
       <div class="row2">
         <div class="field"><label>Tracto</label><input id="in-tracto" placeholder="TR-101" autocapitalize="characters"></div>
         <div class="field"><label>Bultos</label><input id="in-bultos" type="number" inputmode="numeric" placeholder="24"></div>
       </div>
       <div class="field"><label>Peso Neto segun Guia (kg)</label><input id="in-peso" type="number" inputmode="decimal" placeholder="35060"></div>
-      <button class="btn-primary" onclick="addCamion()">Agregar camion</button>
+      <div class="row2">
+        <button class="btn-primary" id="btn-guardar-camion" onclick="guardarCamion()">Agregar camion</button>
+        <button class="btn-ghost" id="btn-cancelar-camion" style="display:none" onclick="cancelarEdicionCamion()">Cancelar edicion</button>
+      </div>
     </div>
 
     <div class="card">
@@ -255,14 +258,24 @@
       <div class="footnote" id="modo-explica"></div>
     </div>
 
+    <div class="card" id="card-parciales-info"></div>
+
     <div class="card">
-      <h2>Agregar contenedor</h2>
+      <h2 id="titulo-form-contenedor">Agregar contenedor</h2>
       <div class="field"><label>Codigo de Contenedor</label><input id="in-codigo" placeholder="MSCU 123456 7" autocapitalize="characters"></div>
       <div class="row2">
         <div class="field"><label>Tara (kg)</label><input id="in-tara" type="number" inputmode="numeric" placeholder="2250"></div>
         <div class="field"><label>Payload max. (kg)</label><input id="in-payload" type="number" inputmode="numeric" placeholder="28230"></div>
       </div>
-      <button class="btn-primary" onclick="addContenedor()">Agregar contenedor</button>
+      <label class="radio-opt">
+        <input type="checkbox" id="in-parcial">
+        <div><div class="t">Reservar para parciales</div>
+        <div class="d">Este contenedor se usara de ultimo para abrir carga nueva: se prioriza para combinar sobras de varios camiones en vez de recibir un camion completo de entrada.</div></div>
+      </label>
+      <div class="row2">
+        <button class="btn-primary" id="btn-guardar-contenedor" onclick="guardarContenedor()">Agregar contenedor</button>
+        <button class="btn-ghost" id="btn-cancelar-contenedor" style="display:none" onclick="cancelarEdicionContenedor()">Cancelar edicion</button>
+      </div>
     </div>
 
     <div class="card">
@@ -408,12 +421,16 @@ function cambiarLote(){
   mostrarPantalla();
 }
 function mostrarPantalla(){
+  editandoCamionIdx = null;
+  editandoContenedorIdx = null;
   if(currentLote()){
     document.getElementById("pantalla-lotes").style.display = "none";
     document.getElementById("pantalla-app").style.display = "block";
     const l = currentLote();
     document.getElementById("hdr-lote-info").textContent = (l.booking||"(sin booking)") + " - " + (l.cliente||"");
     renderModoUI();
+    actualizarFormCamionUI();
+    actualizarFormContenedorUI();
     renderCamiones();
     renderContenedores();
     showView("camiones");
@@ -447,16 +464,48 @@ function renderModoUI(){
     : "El peso se reparte lo mas parejo posible entre todos los contenedores activos, respetando siempre su payload.";
 }
 
-function addCamion(){
+let editandoCamionIdx = null;
+let editandoContenedorIdx = null;
+
+function guardarCamion(){
   const placa = document.getElementById("in-placa").value.trim();
   const tracto = document.getElementById("in-tracto").value.trim();
   const bultos = parseFloat(document.getElementById("in-bultos").value);
   const peso = parseFloat(document.getElementById("in-peso").value);
   if(!placa || !bultos || !peso){ alert("Completa placa, bultos y peso neto segun guia."); return; }
-  currentLote().camiones.push({placa:placa, tracto:tracto, bultos:bultos, peso:peso});
+  const lote = currentLote();
+  if(editandoCamionIdx!==null){
+    const c = lote.camiones[editandoCamionIdx];
+    c.placa = placa; c.tracto = tracto; c.bultos = bultos; c.peso = peso;
+    editandoCamionIdx = null;
+  }else{
+    lote.camiones.push({placa:placa, tracto:tracto, bultos:bultos, peso:peso});
+  }
   saveApp();
   ["in-placa","in-tracto","in-bultos","in-peso"].forEach(function(id){ document.getElementById(id).value=""; });
+  actualizarFormCamionUI();
   renderCamiones();
+}
+function editarCamion(i){
+  const c = currentLote().camiones[i];
+  document.getElementById("in-placa").value = c.placa;
+  document.getElementById("in-tracto").value = c.tracto||"";
+  document.getElementById("in-bultos").value = c.bultos;
+  document.getElementById("in-peso").value = c.peso;
+  editandoCamionIdx = i;
+  actualizarFormCamionUI();
+  document.getElementById("in-placa").scrollIntoView({behavior:"smooth", block:"center"});
+}
+function cancelarEdicionCamion(){
+  editandoCamionIdx = null;
+  ["in-placa","in-tracto","in-bultos","in-peso"].forEach(function(id){ document.getElementById(id).value=""; });
+  actualizarFormCamionUI();
+}
+function actualizarFormCamionUI(){
+  const editando = editandoCamionIdx!==null;
+  document.getElementById("titulo-form-camion").textContent = editando? "Editar camion" : "Agregar camion";
+  document.getElementById("btn-guardar-camion").textContent = editando? "Guardar cambios" : "Agregar camion";
+  document.getElementById("btn-cancelar-camion").style.display = editando? "block" : "none";
 }
 function delCamion(i){
   if(!confirm("Quitar este camion del lote?")) return;
@@ -471,6 +520,7 @@ function delCamion(i){
     nuevo[newCi+"_"+cj] = lote.cosco[k];
   });
   lote.cosco = nuevo;
+  if(editandoCamionIdx===i) cancelarEdicionCamion();
   saveApp();
   renderCamiones();
 }
@@ -491,20 +541,54 @@ function renderCamiones(){
       + '<div class="l1">' + c.placa + (c.tracto? " - "+c.tracto:"") + '</div>'
       + '<div class="l2">' + c.bultos + ' bultos - ' + fmt(c.peso) + ' kg guia - ' + fmt(prom) + ' kg/bulto</div>'
       + '</div>'
+      + '<div style="display:flex;gap:6px">'
+      + '<button class="btn-ghost" onclick="editarCamion('+i+')">Editar</button>'
       + '<button class="btn-danger-ghost" onclick="delCamion('+i+')">Quitar</button>'
-      + '</div>';
+      + '</div></div>';
   }).join("");
 }
 
-function addContenedor(){
+function guardarContenedor(){
   const codigo = document.getElementById("in-codigo").value.trim();
   const tara = parseFloat(document.getElementById("in-tara").value) || 0;
   const payload = parseFloat(document.getElementById("in-payload").value);
+  const parcial = document.getElementById("in-parcial").checked;
   if(!codigo || !payload){ alert("Completa el codigo y el payload maximo."); return; }
-  currentLote().contenedores.push({codigo:codigo, tara:tara, payload:payload});
+  const lote = currentLote();
+  if(editandoContenedorIdx!==null){
+    const c = lote.contenedores[editandoContenedorIdx];
+    c.codigo = codigo; c.tara = tara; c.payload = payload; c.parcial = parcial;
+    editandoContenedorIdx = null;
+  }else{
+    lote.contenedores.push({codigo:codigo, tara:tara, payload:payload, parcial:parcial});
+  }
   saveApp();
   ["in-codigo","in-tara","in-payload"].forEach(function(id){ document.getElementById(id).value=""; });
+  document.getElementById("in-parcial").checked = false;
+  actualizarFormContenedorUI();
   renderContenedores();
+}
+function editarContenedor(i){
+  const c = currentLote().contenedores[i];
+  document.getElementById("in-codigo").value = c.codigo;
+  document.getElementById("in-tara").value = c.tara;
+  document.getElementById("in-payload").value = c.payload;
+  document.getElementById("in-parcial").checked = !!c.parcial;
+  editandoContenedorIdx = i;
+  actualizarFormContenedorUI();
+  document.getElementById("in-codigo").scrollIntoView({behavior:"smooth", block:"center"});
+}
+function cancelarEdicionContenedor(){
+  editandoContenedorIdx = null;
+  ["in-codigo","in-tara","in-payload"].forEach(function(id){ document.getElementById(id).value=""; });
+  document.getElementById("in-parcial").checked = false;
+  actualizarFormContenedorUI();
+}
+function actualizarFormContenedorUI(){
+  const editando = editandoContenedorIdx!==null;
+  document.getElementById("titulo-form-contenedor").textContent = editando? "Editar contenedor" : "Agregar contenedor";
+  document.getElementById("btn-guardar-contenedor").textContent = editando? "Guardar cambios" : "Agregar contenedor";
+  document.getElementById("btn-cancelar-contenedor").style.display = editando? "block" : "none";
 }
 function delContenedor(i){
   if(!confirm("Quitar este contenedor?")) return;
@@ -519,28 +603,54 @@ function delContenedor(i){
     nuevo[ci+"_"+newCj] = lote.cosco[k];
   });
   lote.cosco = nuevo;
+  if(editandoContenedorIdx===i) cancelarEdicionContenedor();
   saveApp();
   renderContenedores();
+}
+function computeParcialesInfo(){
+  const lote = currentLote();
+  const dist = computeDistribution();
+  const contribuyentes = {};
+  lote.contenedores.forEach(function(c,idx){ contribuyentes[idx]=0; });
+  dist.perCamion.forEach(function(info){
+    info.splits.forEach(function(s){ contribuyentes[s.contIdx] = (contribuyentes[s.contIdx]||0) + 1; });
+  });
+  let activos = 0, parcialesReales = 0, marcados = 0;
+  lote.contenedores.forEach(function(c,idx){
+    if(c.payload>0) activos++;
+    if(c.parcial) marcados++;
+    if((contribuyentes[idx]||0) > 1) parcialesReales++;
+  });
+  return {activos:activos, marcados:marcados, parcialesReales:parcialesReales};
 }
 function renderContenedores(){
   const lote = currentLote();
   renderModoUI();
   const box = document.getElementById("lista-contenedores");
+  const targets = computeTargets();
+  const info = computeParcialesInfo();
+  document.getElementById("card-parciales-info").innerHTML =
+    '<h2>Parciales de este lote</h2>'
+    + '<div class="l2" style="font-size:13px">Contenedores activos: <b style="color:var(--amber)">' + info.activos + '</b><br>'
+    + 'Marcados por ti como "reservado para parciales": <b style="color:var(--amber)">' + info.marcados + '</b><br>'
+    + 'Van a recibir mas de un camion con los datos actuales: <b style="color:var(--amber)">' + info.parcialesReales + '</b></div>'
+    + '<div class="footnote">Este ultimo numero se recalcula solo con lo que ya ingresaste; marca "reservado para parciales" en los contenedores que prefieras usar para combinar sobras.</div>';
   if(lote.contenedores.length===0){
     box.innerHTML = '<div class="empty">Sin contenedores todavia. Agrega el primero arriba.</div>';
     return;
   }
-  const targets = computeTargets();
   const label = lote.modoReparto==="maximo" ? "Meta (hasta payload)" : "Target equitativo";
   box.innerHTML = lote.contenedores.map(function(c,i){
     const tgt = targets[i]||0;
     return '<div class="list-item">'
       + '<div class="main">'
-      + '<div class="l1">' + c.codigo + '</div>'
+      + '<div class="l1">' + c.codigo + (c.parcial? ' <span class="pill warn">parcial</span>':'') + '</div>'
       + '<div class="l2">Tara ' + fmt(c.tara) + ' kg - Payload ' + fmt(c.payload) + ' kg - ' + label + ' <span class="pill amber">' + fmt(tgt) + ' kg</span></div>'
       + '</div>'
+      + '<div style="display:flex;gap:6px">'
+      + '<button class="btn-ghost" onclick="editarContenedor('+i+')">Editar</button>'
       + '<button class="btn-danger-ghost" onclick="delContenedor('+i+')">Quitar</button>'
-      + '</div>';
+      + '</div></div>';
   }).join("");
 }
 
@@ -576,8 +686,23 @@ function computeDistribution(){
   const modoMaximo = lote.modoReparto === "maximo";
   const saldo = {};
   lote.contenedores.forEach(function(c,idx){ saldo[idx]=0; });
-  const ordenMaximo = lote.contenedores.map(function(c,idx){ return idx; }).filter(function(idx){ return lote.contenedores[idx].payload>0; });
+  // Orden de apertura de contenedores nuevos: primero los NO marcados como
+  // "parcial" (en el orden en que se ingresaron), y al final los marcados,
+  // para que estos ultimos queden reservados para combinar sobras.
+  const activos = lote.contenedores.map(function(c,idx){ return idx; }).filter(function(idx){ return lote.contenedores[idx].payload>0; });
+  const ordenApertura = activos.filter(function(idx){ return !lote.contenedores[idx].parcial; })
+    .concat(activos.filter(function(idx){ return lote.contenedores[idx].parcial; }));
   const perCamion = [];
+
+  function elegirAbrirNuevo(){
+    for(let oi=0; oi<ordenApertura.length; oi++){
+      const idx = ordenApertura[oi];
+      const tgt = targets[idx]||0;
+      if(tgt<=0) continue;
+      if(saldo[idx]===0) return idx;
+    }
+    return null;
+  }
 
   lote.camiones.forEach(function(cam){
     let remaining = cam.peso || 0;
@@ -585,8 +710,10 @@ function computeDistribution(){
     const splits = [];
 
     if(modoMaximo){
-      for(let oi=0; oi<ordenMaximo.length; oi++){
-        const idx = ordenMaximo[oi];
+      // Llena cada contenedor hasta su tope antes de pasar al siguiente,
+      // en el mismo orden de apertura (no marcados primero).
+      for(let oi=0; oi<ordenApertura.length; oi++){
+        const idx = ordenApertura[oi];
         if(remaining <= 0.01) break;
         const remcap = lote.contenedores[idx].payload - saldo[idx];
         if(remcap <= 0.01) continue;
@@ -597,14 +724,19 @@ function computeDistribution(){
       }
     }else{
       while(remaining > 0.01){
-        let best = null;
+        // 1) Cierra primero cualquier contenedor ya abierto (parcial en curso),
+        //    priorizando el que le falta menos para completarse.
+        let best = null, bestRem = Infinity;
         lote.contenedores.forEach(function(c,idx){
           const tgt = targets[idx]||0;
           if(tgt<=0) return;
-          const remcap = tgt - saldo[idx];
-          if(remcap <= 0.01) return;
-          if(best===null || saldo[idx] < saldo[best]) best = idx;
+          if(saldo[idx] > 0 && saldo[idx] < tgt){
+            const rem = tgt - saldo[idx];
+            if(rem < bestRem){ bestRem = rem; best = idx; }
+          }
         });
+        // 2) Si no hay ninguno abierto, recien ahi se abre uno nuevo.
+        if(best===null) best = elegirAbrirNuevo();
         if(best===null) break;
         const remcap = targets[best] - saldo[best];
         const assign = Math.min(remaining, remcap);
@@ -791,9 +923,9 @@ function exportExcel(){
   XLSX.utils.book_append_sheet(wb, wsCamiones, "Camiones");
 
   const wsCont = XLSX.utils.aoa_to_sheet([
-    ["No","Codigo","Tara (kg)","Payload (kg)","Target/Meta (kg)"]
+    ["No","Codigo","Tara (kg)","Payload (kg)","Target/Meta (kg)","Reservado para parcial"]
   ].concat(lote.contenedores.map(function(c,i){
-    return [i+1, c.codigo, c.tara, c.payload, Math.round(targets[i]||0)];
+    return [i+1, c.codigo, c.tara, c.payload, Math.round(targets[i]||0), c.parcial? "Si":"No"];
   })));
   XLSX.utils.book_append_sheet(wb, wsCont, "Contenedores");
 
